@@ -1,0 +1,29 @@
+[project]
+name = "shorts-fabriek"
+version = "0.1.0"
+description = "Lokale webapp: van videolink naar geüploade YouTube Shorts"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "python-dotenv>=1.0",
+    "yt-dlp>=2025.1.1",
+    "faster-whisper>=1.1",
+    "opencv-python-headless>=4.9",
+    "numpy>=1.26",
+    "anthropic>=0.70",
+    "google-api-python-client>=2.140",
+    "google-auth-oauthlib>=1.2",
+    "google-auth-httplib2>=0.2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

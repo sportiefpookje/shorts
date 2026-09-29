@@ -1,0 +1,10 @@
+# Geheimen
+.env
+client_secret*.json
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
