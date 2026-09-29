@@ -116,3 +116,19 @@ def test_captions_ass():
     assert "Style: Cap,Montserrat ExtraBold" in ass
     assert "{\\c&H0000E6FF&}DIT" in ass
     assert "Kijk dit" in ass
+
+
+def test_find_offset_realigns_section(tmp_path):
+    """yt-dlp knipt op keyframes; de audio-uitlijning moet het echte begin vinden."""
+    import subprocess
+
+    from app.media import extract_audio, find_offset
+
+    src, sec = tmp_path / "src.mp4", tmp_path / "sec.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anoisesrc=d=90:c=pink:a=0.3",
+                    "-af", "volume='0.2+0.8*abs(sin(t*1.7)*sin(t*0.31))':eval=frame", "-c:a", "aac", str(src)],
+                   check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "44", "-i", str(src), "-t", "30", "-c:a", "aac", str(sec)],
+                   check=True)
+    wav = extract_audio(src, tmp_path / "full.wav")
+    assert abs(find_offset(wav, sec, 47.3) - 44.0) < 0.05

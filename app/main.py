@@ -176,6 +176,8 @@ async def api_update_clip(clip_id: int, request: Request):
                                      upd.get("end", clip["end"]), str(data["caption_text"]))
     if "status" in data and data["status"] in ("pending", "approved", "rejected"):
         upd["status"] = data["status"]
+    if RENDER_FIELDS & upd.keys() and clip["upload_status"] == "exported":
+        upd["upload_status"] = "none"  # klaargezette versie is verouderd
     if upd:
         db.update_clip(clip_id, **upd)
     new = db.get_clip(clip_id)
