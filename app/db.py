@@ -123,6 +123,10 @@ def next_queued_job() -> dict | None:
     return _row(conn().execute("SELECT * FROM jobs WHERE status='queued' ORDER BY id LIMIT 1").fetchone())
 
 
+def delete_clips_of_job(job_id: int) -> None:
+    conn().execute("DELETE FROM clips WHERE job_id=?", (job_id,))
+
+
 def delete_job(job_id: int) -> None:
     conn().execute("DELETE FROM clips WHERE job_id=?", (job_id,))
     conn().execute("DELETE FROM jobs WHERE id=?", (job_id,))

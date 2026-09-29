@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Shorts-fabriek{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<nav class="top">
+  <div class="brand">Shorts<span>fabriek</span></div>
+  <a class="tab {% if request.url.path == '/' %}active{% endif %}" href="/">1. Toevoegen</a>
+  <a class="tab {% if request.url.path == '/review' %}active{% endif %}" href="/review">2. Review <span class="badge" id="nav-pending" hidden></span></a>
+  <a class="tab {% if request.url.path == '/publish' %}active{% endif %}" href="/publish">3. Publiceren</a>
+  <div class="spacer"></div>
+  <a class="tab {% if request.url.path == '/settings' %}active{% endif %}" href="/settings">Instellingen</a>
+</nav>
+{% block body %}{% endblock %}
+<script src="/static/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

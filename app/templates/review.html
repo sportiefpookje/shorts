@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Review · Shorts-fabriek{% endblock %}
+{% block body %}
+<main class="wide">
+  <div id="empty" class="card" hidden style="max-width:640px;margin:40px auto;text-align:center">
+    <h2>Niets meer te reviewen 🎉</h2>
+    <p class="muted">Alle clips zijn beoordeeld. Goedgekeurde clips worden op de achtergrond gerenderd.</p>
+    <div class="row" style="justify-content:center">
+      <a class="btn primary" href="/publish">Naar publiceren</a>
+      <a class="btn" href="/">Nieuwe video toevoegen</a>
+      <button class="btn" id="show-all">Toon ook beoordeelde clips</button>
+    </div>
+  </div>
+
+  <div class="review" id="review" hidden>
+    <aside>
+      <div class="row small muted" style="margin-bottom:8px">
+        <span id="list-count"></span><span class="grow"></span>
+        <label class="check" style="margin:0"><input type="checkbox" id="all-toggle"> alles tonen</label>
+      </div>
+      <div class="cliplist" id="list"></div>
+    </aside>
+
+    <section class="stage">
+      <div class="phone" id="phone">
+        <canvas id="cv" width="540" height="960"></canvas>
+        <div class="paused" id="paused">▶</div>
+      </div>
+      <video id="vid" class="hiddenvideo" preload="auto" playsinline></video>
+      <div class="timeline" id="tl">
+        <div class="sel" id="tl-sel"></div>
+        <div class="handle" id="h-start"></div>
+        <div class="handle" id="h-end"></div>
+        <div class="head" id="tl-head"></div>
+      </div>
+      <div class="times">
+        <span>begin <b id="t-start"></b> <button class="btn small" data-nudge="start,-0.5">−</button><button class="btn small" data-nudge="start,0.5">+</button></span>
+        <span id="t-dur"></span>
+        <span><button class="btn small" data-nudge="end,-0.5">−</button><button class="btn small" data-nudge="end,0.5">+</button> einde <b id="t-end"></b></span>
+      </div>
+    </section>
+
+    <section class="editor card">
+      <div class="row">
+        <span class="score" id="e-score"></span>
+        <span class="small muted grow" id="e-reason"></span>
+        <span id="e-status"></span>
+      </div>
+
+      <label>Titel <span class="count" id="title-count"></span></label>
+      <input type="text" id="e-title" maxlength="100">
+
+      <label>Hook-tekst (groot in beeld, eerste 3 s)</label>
+      <input type="text" id="e-hook" placeholder="Leeg = geen hook-tekst">
+
+      <label>Beschrijving</label>
+      <textarea id="e-desc" rows="2"></textarea>
+
+      <label>Hashtags</label>
+      <input type="text" id="e-tags">
+
+      <label>Layout</label>
+      <div class="layouts">
+        <button class="btn small" data-layout="track" title="Uitsnede volgt het gezicht">Volgen</button>
+        <button class="btn small" data-layout="center" title="Vaste uitsnede, positie met schuif">Vast</button>
+        <button class="btn small" data-layout="blur" title="Hele beeld met vervaagde achtergrond">Hele beeld</button>
+        <button class="btn small" data-layout="split" title="Facecam boven, game onder">Facecam+game</button>
+      </div>
+      <div id="pos-wrap">
+        <label id="pos-label">Positie uitsnede</label>
+        <input type="range" id="e-pos" min="0" max="1" step="0.01">
+      </div>
+
+      <label>Ondertitels (typfouten verbeteren)</label>
+      <textarea id="e-caption" rows="3"></textarea>
+
+      <div class="decide">
+        <button class="btn bad" id="reject">✕ Afkeuren <kbd>R</kbd></button>
+        <button class="btn ok" id="approve">✓ Goedkeuren <kbd>A</kbd></button>
+      </div>
+      <div id="render-info" class="small muted" style="margin-top:10px"></div>
+
+      <div class="keys">
+        <span><kbd>Spatie</kbd></span><span>afspelen / pauzeren</span>
+        <span><kbd>J</kbd> <kbd>K</kbd></span><span>vorige / volgende clip</span>
+        <span><kbd>Q</kbd> <kbd>W</kbd></span><span>begin 0,5 s eerder / later</span>
+        <span><kbd>O</kbd> <kbd>P</kbd></span><span>einde 0,5 s eerder / later</span>
+        <span><kbd>B</kbd></span><span>laatste 3 s afspelen (einde checken)</span>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const JOB_ID = {{ job_id | tojson }};
+const CAP = {{ caption_cfg | tojson }};
+const SETTINGS = {{ settings | tojson }};
+</script>
+<script src="/static/review.js"></script>
+{% endblock %}

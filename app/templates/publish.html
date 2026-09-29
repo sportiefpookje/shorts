@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Publiceren · Shorts-fabriek{% endblock %}
+{% block body %}
+<main>
+  {% if settings.upload_mode == "api" and not settings.api_verified %}
+  <div class="notice">Let op: je API-project is nog niet door Google geaudit. Video's die je via de API uploadt worden dan
+    <b>privé (vergrendeld)</b> en kunnen niet meer openbaar. Gebruik de Studio-modus tot de audit rond is (zie README),
+    of zet in Instellingen "API-project is geaudit" aan.</div>
+  {% endif %}
+
+  <div class="card row">
+    <div class="grow">
+      <b id="summary">…</b>
+      <div class="small muted">Modus: <b>{{ "YouTube API (automatisch)" if settings.upload_mode == "api" else "Studio (klaarzetten + zelf slepen)" }}</b>
+        · tijdsloten {{ settings.schedule_slots | join(", ") }} · <a href="/settings">wijzigen</a></div>
+    </div>
+    <button class="btn" id="plan">📅 Plan ongeplande clips in</button>
+    {% if settings.upload_mode == "api" %}
+    <button class="btn primary" id="go">⬆ Upload alles naar YouTube</button>
+    {% else %}
+    <button class="btn primary" id="go">📁 Zet alles klaar voor YouTube Studio</button>
+    <button class="btn" id="open">Open map</button>
+    {% endif %}
+  </div>
+  <div id="yt" class="small muted" style="margin-top:8px"></div>
+
+  {% if settings.upload_mode != "api" %}
+  <div class="notice info" style="margin-top:14px">
+    <b>Zo werkt de Studio-modus:</b> klik "Zet alles klaar" → open de map → sleep de video's in
+    <a href="https://studio.youtube.com" target="_blank">YouTube Studio</a> (max. 15 tegelijk).
+    Kopieer per video titel en beschrijving met de knoppen hieronder en plan in op de getoonde tijd.
+  </div>
+  {% endif %}
+
+  <div class="pubgrid" id="grid"></div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MODE = {{ settings.upload_mode | tojson }};
+const UP = {
+  none: ["", ""], queued: ["Wacht op upload", "blue"], uploading: ["Uploaden…", "blue"],
+  done: ["Op YouTube ✓", "ok"], error: ["Upload mislukt", "bad"], exported: ["Klaargezet in map", "warn"],
+};
+const REN = { none: ["Niet gerenderd", "warn"], queued: ["Wacht op render", ""], rendering: ["Renderen…", "blue"], done: ["", ""], error: ["Render mislukt", "bad"] };
+let items = [];
+
+function localInput(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function nice(iso) {
+  return iso ? new Date(iso).toLocaleString("nl-NL", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "direct";
+}
+
+async function load() {
+  items = await api("/api/publish");
+  const open = items.filter(c => !["done"].includes(c.upload_status));
+  document.getElementById("summary").textContent = items.length
+    ? `${items.length} goedgekeurde clips · ${open.length} nog te publiceren`
+    : "Nog geen goedgekeurde clips";
+  document.getElementById("grid").innerHTML = items.map(c => {
+    const [ul, uc] = UP[c.upload_status] || ["", ""];
+    const [rl, rc] = REN[c.render_status] || ["", ""];
+    const video = c.render_status === "done"
+      ? `<video src="/media/short/${c.id}" preload="metadata" controls></video>`
+      : `<div style="aspect-ratio:9/16;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center" class="muted">${c.render_status === "rendering" ? '<span class="spinner"></span>&nbsp;renderen' : esc(rl)}</div>`;
+    const yt = c.youtube_id ? `<a class="btn small" target="_blank" href="https://studio.youtube.com/video/${c.youtube_id}/edit">Open in Studio</a>` : "";
+    const studio = MODE !== "api" && c.upload_status === "exported" ? `
+      <div class="row" style="margin-top:6px">
+        <button class="btn small" onclick="copyText(${c.id},'title')">Kopieer titel</button>
+        <button class="btn small" onclick="copyText(${c.id},'desc')">Kopieer beschrijving</button>
+        <button class="btn small" onclick="markDone(${c.id})">✓ Geüpload</button>
+      </div>` : "";
+    const err = c.upload_status === "error" ? `<div class="small" style="color:var(--bad)">${esc(c.upload_error)}</div>`
+      : c.upload_status === "uploading" && c.upload_error ? `<div class="small muted">${esc(c.upload_error)}</div>` : "";
+    return `<div class="card pub">
+      ${video}
+      <div class="t">${esc(c.title)}</div>
+      <label style="margin-top:4px">Publiceren op</label>
+      <input type="datetime-local" value="${localInput(c.publish_at)}" onchange="setWhen(${c.id}, this.value)" ${c.upload_status === "done" ? "disabled" : ""}>
+      <div class="row small" style="margin-top:8px">
+        ${ul ? `<span class="chip ${uc}">${ul}</span>` : ""}${rl && c.render_status !== "done" ? `<span class="chip ${rc}">${rl}</span>` : ""}
+        <span class="grow"></span>${yt}
+        <a class="btn small" href="/review?job=${c.job_id}">Bewerk</a>
+      </div>
+      ${studio}${err}
+    </div>`;
+  }).join("");
+}
+
+async function setWhen(id, v) {
+  await api(`/api/clips/${id}/publish_at`, { method: "POST", json: { publish_at: v ? new Date(v).toISOString() : "" } });
+  load();
+}
+document.getElementById("plan").onclick = async () => { await api("/api/schedule", { method: "POST", json: {} }); toast("Ingepland over de vrije tijdsloten"); load(); };
+
+document.getElementById("go").onclick = async () => {
+  const todo = items.filter(c => c.render_status === "done" && !["done", "uploading", "queued"].includes(c.upload_status)
+    && (MODE === "api" || c.upload_status !== "exported"));
+  if (!todo.length) { toast("Niets (meer) klaar om te publiceren"); return; }
+  if (todo.some(c => !c.publish_at) && !confirm("Sommige clips hebben geen datum en gaan direct online. Doorgaan?")) return;
+  if (MODE === "api") {
+    await api("/api/youtube/upload", { method: "POST", json: { ids: todo.map(c => c.id) } });
+    toast(`${todo.length} uploads gestart`);
+  } else {
+    const r = await api("/api/export", { method: "POST", json: { ids: todo.map(c => c.id) } });
+    toast(`${r.exported.length} clips klaargezet in ${r.folder}`, 4000);
+  }
+  load();
+};
+const openBtn = document.getElementById("open");
+if (openBtn) openBtn.onclick = () => api("/api/open_export", { method: "POST" });
+
+async function copyText(id, what) {
+  const c = items.find(x => x.id === id);
+  const s = {{ settings | tojson }};
+  const tags = [c.hashtags, s.default_hashtags].filter(Boolean).join(" ");
+  const text = what === "title" ? c.title : [c.description, tags, s.description_footer].filter(Boolean).join("\n\n");
+  await navigator.clipboard.writeText(text);
+  toast(what === "title" ? "Titel gekopieerd" : "Beschrijving gekopieerd", 1200);
+}
+async function markDone(id) { await api(`/api/clips/${id}/mark_uploaded`, { method: "POST" }); load(); }
+
+async function ytStatus() {
+  if (MODE !== "api") return;
+  const s = await api("/api/youtube/status");
+  document.getElementById("yt").innerHTML = s.connected ? `Gekoppeld aan kanaal <b>${esc(s.channel)}</b>`
+    : `<span style="color:var(--warn)">YouTube niet gekoppeld</span> — <a href="/settings">koppel in Instellingen</a>`;
+}
+load(); ytStatus();
+setInterval(load, 4000);
+</script>
+{% endblock %}

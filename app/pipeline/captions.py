@@ -13,7 +13,10 @@ CAPTION_Y = {"track": 1370, "center": 1370, "blur": 1430, "split": 768}
 HOOK_Y = 250
 HOOK_SECONDS = 3.0
 MAX_WORDS = 3
-MAX_CHARS = 18
+MAX_CHARS = 16
+# ASS-lettergrootte; libass rekent met winAscent+winDescent (Montserrat: 1,562 em)
+CAP_SIZE = 118
+HOOK_SIZE = 84
 
 
 def _ass_color(hex_rgb: str, alpha: int = 0) -> str:
@@ -64,8 +67,8 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{FONT_NAME},92,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,7,3,5,60,60,0,1
-Style: Hook,{FONT_NAME},68,&H00000000,&H00000000,&H00FFFFFF,&H00000000,0,0,0,0,100,100,0,0,3,22,0,8,90,90,0,1
+Style: Cap,{FONT_NAME},{CAP_SIZE},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,8,3,5,60,60,0,1
+Style: Hook,{FONT_NAME},{HOOK_SIZE},&H00000000,&H00000000,&H00FFFFFF,&H00000000,0,0,0,0,100,100,0,0,3,22,0,8,90,90,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

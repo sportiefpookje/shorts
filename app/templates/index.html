@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block body %}
+<main>
+  {% if not has_key %}
+  <div class="notice">Geen <b>ANTHROPIC_API_KEY</b> in <code>.env</code>: clips worden alleen op geluid gekozen en titels zijn ruw.
+    Voor de beste (virale) keuzes: zet je sleutel in <code>.env</code> en herstart.</div>
+  {% endif %}
+
+  <div class="card">
+    <h2 style="margin:0 0 10px">Nieuwe video's</h2>
+    <textarea id="urls" rows="3" placeholder="Plak hier één of meer links (YouTube, Twitch-VOD, ...), één per regel. Ctrl+Enter = starten"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="go">Maak Shorts</button>
+      <div class="drop grow" id="drop">of <b>sleep videobestanden hierheen</b> (of klik om te kiezen)</div>
+      <input type="file" id="file" accept="video/*,.mkv" multiple hidden>
+    </div>
+    <div id="uploading" class="small muted" style="margin-top:8px"></div>
+  </div>
+
+  <h3 style="margin:26px 0 0">Wachtrij</h3>
+  <div class="jobs" id="jobs"><div class="muted">Nog niets toegevoegd.</div></div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const STATUS = {
+  queued: ["In wachtrij", ""], downloading: ["Downloaden", "blue"], transcribing: ["Transcriberen", "blue"],
+  analyzing: ["Hoogtepunten zoeken", "blue"], preparing: ["Clips voorbereiden", "blue"],
+  ready: ["Klaar", "ok"], error: ["Mislukt", "bad"],
+};
+
+async function addUrls() {
+  const v = document.getElementById("urls").value.trim();
+  if (!v) return;
+  await api("/api/jobs", { method: "POST", json: { urls: v } });
+  document.getElementById("urls").value = "";
+  toast("Toegevoegd aan de wachtrij");
+  loadJobs();
+}
+document.getElementById("go").onclick = addUrls;
+document.getElementById("urls").addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) addUrls();
+});
+
+// Bestanden slepen / kiezen
+const drop = document.getElementById("drop"), fileIn = document.getElementById("file");
+drop.onclick = () => fileIn.click();
+fileIn.onchange = () => uploadFiles(fileIn.files);
+["dragenter", "dragover"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("hover"); }));
+["dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" || e.target === document.documentElement) drop.classList.remove("hover"); }));
+document.addEventListener("drop", e => {
+  const txt = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
+  if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+  else if (txt) { document.getElementById("urls").value = txt; addUrls(); }
+});
+
+async function uploadFiles(files) {
+  const info = document.getElementById("uploading");
+  for (const f of files) {
+    await new Promise((resolve) => {
+      const fd = new FormData();
+      fd.append("file", f);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/jobs/upload");
+      xhr.upload.onprogress = e => { info.textContent = `${f.name}: ${Math.round(100 * e.loaded / e.total)}% ingeladen`; };
+      xhr.onload = () => { info.textContent = ""; if (xhr.status >= 300) toast("Inladen mislukt"); resolve(); loadJobs(); };
+      xhr.onerror = () => { toast("Inladen mislukt"); resolve(); };
+      xhr.send(fd);
+    });
+  }
+}
+
+async function loadJobs() {
+  const jobs = await api("/api/jobs");
+  const el = document.getElementById("jobs");
+  if (!jobs.length) { el.innerHTML = '<div class="muted">Nog niets toegevoegd.</div>'; return; }
+  el.innerHTML = jobs.map(j => {
+    const [label, cls] = STATUS[j.status] || [j.status, ""];
+    const busy = !["ready", "error", "queued"].includes(j.status);
+    const note = (j.meta && j.meta.note) ? `<div class="small" style="color:var(--warn)">${esc(j.meta.note)}</div>` : "";
+    const err = j.error ? `<div class="small" style="color:var(--bad)">${esc(j.error.split("\n").slice(-3).join(" "))}</div>` : "";
+    const review = j.n_pending ? `<a class="btn primary small" href="/review?job=${j.id}">Review (${j.n_pending})</a>`
+      : (j.n_clips ? `<a class="btn small" href="/review?job=${j.id}">Bekijk clips</a>` : "");
+    return `<div class="card job">
+      <div class="grow" style="min-width:0">
+        <div class="title">${esc(j.title || j.source)}</div>
+        <div class="small muted">${busy ? '<span class="spinner"></span> ' : ""}${esc(j.progress || "")}
+          ${j.n_approved ? ` · ${j.n_approved} goedgekeurd` : ""}</div>
+        ${note}${err}
+      </div>
+      <span class="chip ${cls}">${label}</span>
+      ${review}
+      ${j.status === "error" ? `<button class="btn small" onclick="retry(${j.id})">Opnieuw</button>` : ""}
+      <button class="btn small" title="Verwijderen" onclick="del(${j.id})">✕</button>
+    </div>`;
+  }).join("");
+}
+async function retry(id) { await api(`/api/jobs/${id}/retry`, { method: "POST" }); loadJobs(); }
+async function del(id) {
+  if (!confirm("Deze video en al zijn clips verwijderen?")) return;
+  await api(`/api/jobs/${id}`, { method: "DELETE" }); loadJobs();
+}
+loadJobs();
+setInterval(loadJobs, 2000);
+</script>
+{% endblock %}

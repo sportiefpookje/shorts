@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Instellingen · Shorts-fabriek{% endblock %}
+{% block body %}
+<main>
+  <form id="f" class="card">
+    <h2 style="margin-top:0">Kanaal &amp; stijl</h2>
+    <div class="form-grid">
+      <div class="full">
+        <label>Waar gaat je kanaal over en voor wie? (Claude gebruikt dit om clips en titels te kiezen)</label>
+        <textarea name="channel_description" rows="2" placeholder="Bijv. Nederlandse gamingstreams (Fortnite, GTA), publiek 16-25, humor en fails">{{ settings.channel_description }}</textarea>
+      </div>
+      <div>
+        <label>Taal van titels/ondertitels</label>
+        <select name="language">
+          {% for code, name in [("auto","Automatisch (taal van de video)"),("nl","Nederlands"),("en","Engels"),("de","Duits"),("fr","Frans"),("es","Spaans")] %}
+          <option value="{{ code }}" {% if settings.language == code %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Vaste hashtags (bij elke video)</label>
+        <input type="text" name="default_hashtags" value="{{ settings.default_hashtags }}">
+      </div>
+      <div class="full">
+        <label>Vaste tekst onder elke beschrijving</label>
+        <textarea name="description_footer" rows="2" placeholder="Bijv. Volledige stream op mijn kanaal!">{{ settings.description_footer }}</textarea>
+      </div>
+    </div>
+
+    <h2>Clips</h2>
+    <div class="form-grid">
+      <div><label>Maximaal aantal clips per video</label><input type="number" name="max_clips" min="1" max="20" value="{{ settings.max_clips }}"></div>
+      <div><label>Minimale viraliteitsscore (1-10) — hoger = strenger</label><input type="number" name="min_score" min="1" max="10" value="{{ settings.min_score }}"></div>
+      <div><label>Minimale lengte (s)</label><input type="number" name="min_duration" min="5" max="59" value="{{ settings.min_duration }}"></div>
+      <div><label>Maximale lengte (s)</label><input type="number" name="max_duration" min="10" max="59" value="{{ settings.max_duration }}"></div>
+      <div><label>Kleur actief woord in ondertitels</label><input type="text" name="caption_color" value="{{ settings.caption_color }}"></div>
+      <div>
+        <label class="check"><input type="checkbox" name="captions" {% if settings.captions %}checked{% endif %}> Ondertitels inbranden</label>
+        <label class="check"><input type="checkbox" name="caption_uppercase" {% if settings.caption_uppercase %}checked{% endif %}> Ondertitels in HOOFDLETTERS</label>
+        <label class="check"><input type="checkbox" name="hook_overlay" {% if settings.hook_overlay %}checked{% endif %}> Hook-tekst bovenin eerste 3 s</label>
+      </div>
+    </div>
+
+    <h2>Snelheid &amp; modellen</h2>
+    <div class="form-grid">
+      <div>
+        <label>Transcriptie pass 1 (hele video, om te kiezen)</label>
+        <select name="whisper_fast_model">
+          {% for m in ["base","small","medium","large-v3-turbo"] %}<option {% if settings.whisper_fast_model == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Transcriptie pass 2 (alleen clips, voor ondertitels)</label>
+        <select name="whisper_quality_model">
+          {% for m in ["small","medium","large-v3-turbo","large-v3"] %}<option {% if settings.whisper_quality_model == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>Clips tegelijk renderen</label><input type="number" name="render_parallel" min="1" max="6" value="{{ settings.render_parallel }}"></div>
+      <div>
+        <label>Video-encoder</label>
+        <select name="encoder">
+          {% for v, n in [("auto","Automatisch (GPU als het kan)"),("h264_amf","AMD (AMF)"),("h264_qsv","Intel (Quick Sync)"),("h264_nvenc","NVIDIA (NVENC)"),("libx264","CPU (libx264)")] %}
+          <option value="{{ v }}" {% if settings.encoder == v %}selected{% endif %}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="full">
+        <label>Claude-model</label>
+        <input type="text" name="claude_model" value="{{ settings.claude_model }}">
+        <div class="small muted" style="margin-top:4px">Claude API-sleutel: {% if has_key %}<span class="chip ok">ingesteld</span>{% else %}<span class="chip bad">ontbreekt</span> — zet <code>ANTHROPIC_API_KEY</code> in <code>.env</code>{% endif %}</div>
+      </div>
+    </div>
+
+    <h2>Publiceren</h2>
+    <div class="form-grid">
+      <div>
+        <label>Uploadmodus</label>
+        <select name="upload_mode">
+          <option value="studio" {% if settings.upload_mode == "studio" %}selected{% endif %}>Studio: klaarzetten in map, zelf slepen</option>
+          <option value="api" {% if settings.upload_mode == "api" %}selected{% endif %}>YouTube API: volledig automatisch</option>
+        </select>
+      </div>
+      <div><label>Tijdsloten per dag (komma's)</label><input type="text" name="schedule_slots" value="{{ settings.schedule_slots | join(', ') }}"></div>
+      <div>
+        <label>Categorie</label>
+        <select name="category_id">
+          {% for v, n in [("22","Mensen & blogs"),("20","Gaming"),("24","Entertainment"),("23","Comedy"),("17","Sport"),("27","Educatie"),("28","Wetenschap & technologie"),("10","Muziek")] %}
+          <option value="{{ v }}" {% if settings.category_id == v %}selected{% endif %}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="check"><input type="checkbox" name="api_verified" {% if settings.api_verified %}checked{% endif %}> Mijn API-project is geaudit door Google</label>
+        <label class="check"><input type="checkbox" name="made_for_kids" {% if settings.made_for_kids %}checked{% endif %}> Gemaakt voor kinderen</label>
+      </div>
+      <div class="full">
+        <label>YouTube-koppeling</label>
+        <div class="row"><span id="yt" class="grow small muted">…</span><button type="button" class="btn" id="connect">YouTube koppelen</button></div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:20px"><button class="btn primary" type="submit">Opslaan</button></div>
+  </form>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById("f").onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target, data = {};
+  for (const el of f.elements) {
+    if (!el.name) continue;
+    data[el.name] = el.type === "checkbox" ? el.checked : el.value;
+  }
+  await api("/api/settings", { method: "POST", json: data });
+  toast("Opgeslagen");
+};
+
+async function ytStatus() {
+  const s = await api("/api/youtube/status");
+  const el = document.getElementById("yt");
+  if (!s.secret) el.innerHTML = '<span style="color:var(--warn)">Geen OAuth-bestand gevonden (client_secret.json). Zie README → "YouTube koppelen".</span>';
+  else if (s.connected) el.innerHTML = `Gekoppeld aan <b>${esc(s.channel)}</b>`;
+  else el.innerHTML = "Niet gekoppeld" + (s.error ? ` <span class="small">(${esc(s.error)})</span>` : "");
+}
+document.getElementById("connect").onclick = async () => {
+  await api("/api/youtube/connect", { method: "POST" });
+  toast("Log in via het browservenster dat opent…", 4000);
+  const iv = setInterval(async () => {
+    const st = await api("/api/youtube/connect");
+    if (!st.running) { clearInterval(iv); if (st.error) toast("Koppelen mislukt: " + st.error, 5000); ytStatus(); }
+  }, 1500);
+};
+ytStatus();
+</script>
+{% endblock %}
